@@ -9,8 +9,8 @@ import gzip
 import bz2
 import argparse
 from scipy.stats import chi2
-from ldscore import sumstats
-from ldsc import MASTHEAD, Logger, sec_to_str
+from helpers import sumstats
+from helpers.ldsc import MASTHEAD, Logger, sec_to_str
 import time
 np.seterr(invalid='ignore')
 
@@ -743,4 +743,4 @@ def munge_sumstats(args, p=True):
             T=sec_to_str(round(time.time() - START_TIME, 2))))
 
 if __name__ == '__main__':
-    munge_sumstats(parser.parse_args(), p=True)
+    process_sumstats(parser.parse_args(), p=True)
