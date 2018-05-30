@@ -9,10 +9,10 @@ LDSC is a command line tool for estimating
 
 '''
 from __future__ import division
-import ldscore.ldscore as ld
-import ldscore.parse as ps
-import ldscore.sumstats as sumstats
-import ldscore.regressions as reg
+import ldscore as ld
+import parse as ps
+import sumstats as sumstats
+import regressions as reg
 import numpy as np
 import pandas as pd
 from subprocess import call
