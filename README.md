@@ -1,3 +1,17 @@
+# Bioinformatics Reconciliation for LDpred
+
+These scripts were modified from the original LDSC repo for the purpose of bioinformatics reconciliation of summary statistics for use with LDpred. munge_sumstats.py is a fantastic little script, and rather than reinventing the wheel and creating my own reconciliation script, I decided to heavily modify it to output the BASIC input format for LDpred. 
+
+Note that this branch only includes files relevant to the munge_sumstats.py script, not LDSC.py or make_annot.py.
+
+## Input
+
+## Output
+
+## Running on the Broad cluster
+
+___
+
 
 # LDSC (LD SCore) `v1.0.0`
 
