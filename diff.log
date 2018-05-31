@@ -1,0 +1,141 @@
+16a17,18
+> sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+> 
+32a35,39
+>     # CHROMOSOME
+>     'CHR': 'CHR',
+>     # BASEPAIR
+>     'BP': 'BP',
+>     'POS': 'BP',
+83c90
+<     # SIGNED STATISTICS
+---
+>     # WEIGHT
+94c101
+<     'SIGNED_SUMSTAT': 'SIGNED_SUMSTAT',
+---
+>     'SIGNED_SUMSTAT': 'WEIGHT',
+105a113,114
+>     'CHR': 'Chromosome',
+>     'BP': 'Position',
+119c128
+<     'SIGNED_SUMSTAT': 'Directional summary statistic as specified by --signed-sumstats.',
+---
+>     'WEIGHT': 'Directional summary statistic as specified by --weight.',
+123c132
+< numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'INFO', 'FRQ', 'SIGNED_SUMSTAT', 'NSTUDY']
+---
+> numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'INFO', 'FRQ', 'WEIGHT', 'NSTUDY']
+359a369,370
+>     log.log('Sample size is {N}.'.format(N=dat.N.max()))
+> 
+389a401,402
+> 	[args.chr, 'CHR', '--chr'],
+> 	[args.bp, 'BP', '--bp'],
+411c424
+<     if args.signed_sumstats:
+---
+>     if args.weights:
+413c426
+<             cname, null_value = args.signed_sumstats.split(',')
+---
+>             cname, null_value = args.weights.split(',')
+415c428
+<             flag_cnames[clean_header(cname)] = 'SIGNED_SUMSTAT'
+---
+>             flag_cnames[clean_header(cname)] = 'WEIGHT'
+418c431
+<                 'The argument to --signed-sumstats should be column header comma number.')
+---
+>                 'The argument to --weights should be column header comma number.')
+466c479
+< parser.add_argument('--info-min', default=0.9, type=float,
+---
+> parser.add_argument('--info-min', default=0.00, type=float,
+468c481
+< parser.add_argument('--maf-min', default=0.01, type=float,
+---
+> parser.add_argument('--maf-min', default=0.00, type=float,
+488a502,505
+> parser.add_argument('--chr', default=None, type=str,
+>                     help='Name of CHR column (if not a name that ldsc understands). NB: case insensitive.')
+> parser.add_argument('--bp', default=None, type=str,
+>                     help='Name of BP column (if not a name that ldsc understands). NB: case insensitive.')
+503,504c520,521
+< parser.add_argument('--signed-sumstats', default=None, type=str,
+<                     help='Name of signed sumstat column, comma null value (e.g., Z,0 or OR,1). NB: case insensitive.')
+---
+> parser.add_argument('--weights', default=None, type=str,
+>                     help='Name of weight column, comma null value (e.g., Z,0 or OR,1). NB: case insensitive.')
+545c562
+<             header += './munge_sumstats.py \\\n'
+---
+>             header += './process_sumstats.py \\\n'
+559c576
+<         if args.signed_sumstats is not None or args.a1_inc:
+---
+>         if args.weights is not None or args.a1_inc:
+603c620
+<         if args.signed_sumstats is None and not args.a1_inc:
+---
+>         if args.weights is None and not args.a1_inc:
+608c625
+<                     'Too many signed sumstat columns. Specify which to ignore with the --ignore flag.')
+---
+>                     'Too many weight columns. Specify which to ignore with the --ignore flag.')
+611c628
+<                     'Could not find a signed summary statistic column.')
+---
+>                     'Could not find an effect allele weight column.')
+615c632
+<             cname_translation[sign_cname] = 'SIGNED_SUMSTAT'
+---
+>             cname_translation[sign_cname] = 'WEIGHT'
+617c634
+<             sign_cname = 'SIGNED_SUMSTATS'
+---
+>             sign_cname = 'WEIGHT'
+621c638
+<             req_cols = ['SNP', 'P', 'SIGNED_SUMSTAT']
+---
+>             req_cols = ['SNP', 'P', 'WEIGHT','CHR','A1','A2','BP']
+680c697
+<         signed_sumstat_cols = [k for k,v in cname_translation.items() if v=='SIGNED_SUMSTAT']
+---
+>         signed_sumstat_cols = [k for k,v in cname_translation.items() if v=='WEIGHT']
+697,698c714,715
+<         dat.P = p_to_z(dat.P, dat.N)
+<         dat.rename(columns={'P': 'Z'}, inplace=True)
+---
+>         dat['P2'] = p_to_z(dat.P, dat.N)
+> 	dat.rename(columns={'P2': 'Z'}, inplace=True)
+701,703c718,726
+<                 check_median(dat.SIGNED_SUMSTAT, signed_sumstat_null, 0.1, sign_cname))
+<             dat.Z *= (-1) ** (dat.SIGNED_SUMSTAT < signed_sumstat_null)
+<             dat.drop('SIGNED_SUMSTAT', inplace=True, axis=1)
+---
+>                 check_median(dat.WEIGHT, signed_sumstat_null, 0.1, sign_cname))
+>             if sign_cname.upper() == 'OR':
+> 		print "converting ORs"
+> 		dat.WEIGHT = dat.WEIGHT.apply(np.log)
+> 	    dat.Z *= (-1) ** (dat.WEIGHT < signed_sumstat_null)
+> 	# preface chromosome number with "chr," as required by LDpred
+>         if dat.CHR.dtype.name != "object":
+>             dat.CHR = 'chr' + dat.CHR.astype(str)
+> 
+709,711c732,733
+<         out_fname = args.out + '.sumstats'
+<         print_colnames = [
+<             c for c in dat.columns if c in ['SNP', 'N', 'Z', 'A1', 'A2']]
+---
+>         out_fname = args.out + '.basic'
+>         print_colnames = ['CHR','SNP', 'A1', 'A2', 'BP', 'WEIGHT', 'P']
+716c738
+<             msg.format(M=len(dat), F=out_fname + '.gz', N=dat.N.notnull().sum()))
+---
+>             msg.format(M=len(dat), F=out_fname, N=dat.N.notnull().sum()))
+719,720c741
+<                        columns=print_colnames, float_format='%.3f')
+<             os.system('gzip -f {F}'.format(F=out_fname))
+---
+>                        columns=print_colnames)

@@ -14,6 +14,8 @@ from helpers.ldsc import MASTHEAD, Logger, sec_to_str
 import time
 np.seterr(invalid='ignore')
 
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+
 try:
     x = pd.DataFrame({'A': [1, 2, 3]})
     x.sort_values(by='A')
@@ -30,6 +32,11 @@ null_values = {
 
 default_cnames = {
 
+    # CHROMOSOME
+    'CHR': 'CHR',
+    # BASEPAIR
+    'BP': 'BP',
+    'POS': 'BP',
     # RS NUMBER
     'SNP': 'SNP',
     'MARKERNAME': 'SNP',
@@ -80,7 +87,7 @@ default_cnames = {
     'CONTROLS_N': 'N_CON',
     'N_CONTROL': 'N_CON',
     'WEIGHT': 'N',  # metal does this. possibly risky.
-    # SIGNED STATISTICS
+    # WEIGHT
     'ZSCORE': 'Z',
     'Z-SCORE': 'Z',
     'GC_ZSCORE': 'Z',
@@ -91,7 +98,7 @@ default_cnames = {
     'LOG_ODDS': 'LOG_ODDS',
     'EFFECTS': 'BETA',
     'EFFECT': 'BETA',
-    'SIGNED_SUMSTAT': 'SIGNED_SUMSTAT',
+    'SIGNED_SUMSTAT': 'WEIGHT',
     # INFO
     'INFO': 'INFO',
     # MAF
@@ -103,6 +110,8 @@ default_cnames = {
 }
 
 describe_cname = {
+    'CHR': 'Chromosome',
+    'BP': 'Position',
     'SNP': 'Variant ID (e.g., rs number)',
     'P': 'p-Value',
     'A1': 'Allele 1, interpreted as ref allele for signed sumstat.',
@@ -116,11 +125,11 @@ describe_cname = {
     'LOG_ODDS': 'Log odds ratio (0 --> no effect; above 0 --> A1 is risk increasing)',
     'INFO': 'INFO score (imputation quality; higher --> better imputation)',
     'FRQ': 'Allele frequency',
-    'SIGNED_SUMSTAT': 'Directional summary statistic as specified by --signed-sumstats.',
+    'WEIGHT': 'Directional summary statistic as specified by --weight.',
     'NSTUDY': 'Number of studies in which the SNP was genotyped.'
 }
 
-numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'INFO', 'FRQ', 'SIGNED_SUMSTAT', 'NSTUDY']
+numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'INFO', 'FRQ', 'WEIGHT', 'NSTUDY']
 
 def read_header(fh):
     '''Read the first line of a file and returns a list with the column names.'''
@@ -357,6 +366,8 @@ def process_n(dat, args, log):
             raise ValueError('Cannot determine N. This message indicates a bug.\n'
                              'N should have been checked earlier in the program.')
 
+    log.log('Sample size is {N}.'.format(N=dat.N.max()))
+
     return dat
 
 
@@ -387,6 +398,8 @@ def parse_flag_cnames(log, args):
     cname_options = [
         [args.nstudy, 'NSTUDY', '--nstudy'],
         [args.snp, 'SNP', '--snp'],
+	[args.chr, 'CHR', '--chr'],
+	[args.bp, 'BP', '--bp'],
         [args.N_col, 'N', '--N'],
         [args.N_cas_col, 'N_CAS', '--N-cas-col'],
         [args.N_con_col, 'N_CON', '--N-con-col'],
@@ -408,14 +421,14 @@ def parse_flag_cnames(log, args):
             raise
 
     null_value = None
-    if args.signed_sumstats:
+    if args.weights:
         try:
-            cname, null_value = args.signed_sumstats.split(',')
+            cname, null_value = args.weights.split(',')
             null_value = float(null_value)
-            flag_cnames[clean_header(cname)] = 'SIGNED_SUMSTAT'
+            flag_cnames[clean_header(cname)] = 'WEIGHT'
         except ValueError:
             log.log(
-                'The argument to --signed-sumstats should be column header comma number.')
+                'The argument to --weights should be column header comma number.')
             raise
 
     return [flag_cnames, null_value]
@@ -463,9 +476,9 @@ parser.add_argument('--N-con', default=None, type=float,
                     "column, and this flag is set, the argument to this flag has priority.")
 parser.add_argument('--out', default=None, type=str,
                     help="Output filename prefix.")
-parser.add_argument('--info-min', default=0.9, type=float,
+parser.add_argument('--info-min', default=0.00, type=float,
                     help="Minimum INFO score.")
-parser.add_argument('--maf-min', default=0.01, type=float,
+parser.add_argument('--maf-min', default=0.00, type=float,
                     help="Minimum MAF.")
 parser.add_argument('--daner', default=False, action='store_true',
                     help="Use this flag to parse Stephan Ripke's daner* file format.")
@@ -486,6 +499,10 @@ parser.add_argument('--chunksize', default=5e6, type=int,
 # optional args to specify column names
 parser.add_argument('--snp', default=None, type=str,
                     help='Name of SNP column (if not a name that ldsc understands). NB: case insensitive.')
+parser.add_argument('--chr', default=None, type=str,
+                    help='Name of CHR column (if not a name that ldsc understands). NB: case insensitive.')
+parser.add_argument('--bp', default=None, type=str,
+                    help='Name of BP column (if not a name that ldsc understands). NB: case insensitive.')
 parser.add_argument('--N-col', default=None, type=str,
                     help='Name of N column (if not a name that ldsc understands). NB: case insensitive.')
 parser.add_argument('--N-cas-col', default=None, type=str,
@@ -500,8 +517,8 @@ parser.add_argument('--p', default=None, type=str,
                     help='Name of p-value column (if not a name that ldsc understands). NB: case insensitive.')
 parser.add_argument('--frq', default=None, type=str,
                     help='Name of FRQ or MAF column (if not a name that ldsc understands). NB: case insensitive.')
-parser.add_argument('--signed-sumstats', default=None, type=str,
-                    help='Name of signed sumstat column, comma null value (e.g., Z,0 or OR,1). NB: case insensitive.')
+parser.add_argument('--weights', default=None, type=str,
+                    help='Name of weight column, comma null value (e.g., Z,0 or OR,1). NB: case insensitive.')
 parser.add_argument('--info', default=None, type=str,
                     help='Name of INFO column (if not a name that ldsc understands). NB: case insensitive.')
 parser.add_argument('--info-list', default=None, type=str,
@@ -542,7 +559,7 @@ def munge_sumstats(args, p=True):
             non_defaults = [x for x in opts.keys() if opts[x] != defaults[x]]
             header = MASTHEAD
             header += "Call: \n"
-            header += './munge_sumstats.py \\\n'
+            header += './process_sumstats.py \\\n'
             options = ['--'+x.replace('_','-')+' '+str(opts[x])+' \\' for x in non_defaults]
             header += '\n'.join(options).replace('True','').replace('False','')
             header = header[0:-1]+'\n'
@@ -556,7 +573,7 @@ def munge_sumstats(args, p=True):
             ignore_cnames = []
 
         # remove LOG_ODDS, BETA, Z, OR from the default list
-        if args.signed_sumstats is not None or args.a1_inc:
+        if args.weights is not None or args.a1_inc:
             mod_default_cnames = {x: default_cnames[
                 x] for x in default_cnames if default_cnames[x] not in null_values}
         else:
@@ -600,25 +617,25 @@ def munge_sumstats(args, p=True):
                              clean_header(x) in cname_map}  # note keys not cleaned
         cname_description = {
             x: describe_cname[cname_translation[x]] for x in cname_translation}
-        if args.signed_sumstats is None and not args.a1_inc:
+        if args.weights is None and not args.a1_inc:
             sign_cnames = [
                 x for x in cname_translation if cname_translation[x] in null_values]
             if len(sign_cnames) > 1:
                 raise ValueError(
-                    'Too many signed sumstat columns. Specify which to ignore with the --ignore flag.')
+                    'Too many weight columns. Specify which to ignore with the --ignore flag.')
             if len(sign_cnames) == 0:
                 raise ValueError(
-                    'Could not find a signed summary statistic column.')
+                    'Could not find an effect allele weight column.')
 
             sign_cname = sign_cnames[0]
             signed_sumstat_null = null_values[cname_translation[sign_cname]]
-            cname_translation[sign_cname] = 'SIGNED_SUMSTAT'
+            cname_translation[sign_cname] = 'WEIGHT'
         else:
-            sign_cname = 'SIGNED_SUMSTATS'
+            sign_cname = 'WEIGHT'
 
         # check that we have all the columns we need
         if not args.a1_inc:
-            req_cols = ['SNP', 'P', 'SIGNED_SUMSTAT']
+            req_cols = ['SNP', 'P', 'WEIGHT','CHR','A1','A2','BP']
         else:
             req_cols = ['SNP', 'P']
 
@@ -677,7 +694,7 @@ def munge_sumstats(args, p=True):
 
         # figure out which columns are going to involve sign information, so we can ensure
         # they're read as floats
-        signed_sumstat_cols = [k for k,v in cname_translation.items() if v=='SIGNED_SUMSTAT']
+        signed_sumstat_cols = [k for k,v in cname_translation.items() if v=='WEIGHT']
         dat_gen = pd.read_csv(args.sumstats, delim_whitespace=True, header=0,
                 compression=compression, usecols=cname_translation.keys(),
                 na_values=['.', 'NA'], iterator=True, chunksize=args.chunksize,
@@ -694,30 +711,34 @@ def munge_sumstats(args, p=True):
             M=old - new, N=new))
         # filtering on N cannot be done chunkwise
         dat = process_n(dat, args, log)
-        dat.P = p_to_z(dat.P, dat.N)
-        dat.rename(columns={'P': 'Z'}, inplace=True)
+        dat['P2'] = p_to_z(dat.P, dat.N)
+	dat.rename(columns={'P2': 'Z'}, inplace=True)
         if not args.a1_inc:
             log.log(
-                check_median(dat.SIGNED_SUMSTAT, signed_sumstat_null, 0.1, sign_cname))
-            dat.Z *= (-1) ** (dat.SIGNED_SUMSTAT < signed_sumstat_null)
-            dat.drop('SIGNED_SUMSTAT', inplace=True, axis=1)
+                check_median(dat.WEIGHT, signed_sumstat_null, 0.1, sign_cname))
+            if sign_cname.upper() == 'OR':
+		print "converting ORs"
+		dat.WEIGHT = dat.WEIGHT.apply(np.log)
+	    dat.Z *= (-1) ** (dat.WEIGHT < signed_sumstat_null)
+	# preface chromosome number with "chr," as required by LDpred
+        if dat.CHR.dtype.name != "object":
+            dat.CHR = 'chr' + dat.CHR.astype(str)
+
         # do this last so we don't have to worry about NA values in the rest of
         # the program
         if args.merge_alleles:
             dat = allele_merge(dat, merge_alleles, log)
 
-        out_fname = args.out + '.sumstats'
-        print_colnames = [
-            c for c in dat.columns if c in ['SNP', 'N', 'Z', 'A1', 'A2']]
+        out_fname = args.out + '.basic'
+        print_colnames = ['CHR','SNP', 'A1', 'A2', 'BP', 'WEIGHT', 'P']
         if args.keep_maf and 'FRQ' in dat.columns:
             print_colnames.append('FRQ')
         msg = 'Writing summary statistics for {M} SNPs ({N} with nonmissing beta) to {F}.'
         log.log(
-            msg.format(M=len(dat), F=out_fname + '.gz', N=dat.N.notnull().sum()))
+            msg.format(M=len(dat), F=out_fname, N=dat.N.notnull().sum()))
         if p:
             dat.to_csv(out_fname, sep="\t", index=False,
-                       columns=print_colnames, float_format='%.3f')
-            os.system('gzip -f {F}'.format(F=out_fname))
+                       columns=print_colnames)
 
         log.log('\nMetadata:')
         CHISQ = (dat.Z ** 2)
