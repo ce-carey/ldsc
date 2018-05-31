@@ -764,4 +764,4 @@ def munge_sumstats(args, p=True):
             T=sec_to_str(round(time.time() - START_TIME, 2))))
 
 if __name__ == '__main__':
-    process_sumstats(parser.parse_args(), p=True)
+    munge_sumstats(parser.parse_args(), p=True)

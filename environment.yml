@@ -1,4 +1,4 @@
-name: ldsc
+name: sumstats
 channels:
 - bioconda
 dependencies:
