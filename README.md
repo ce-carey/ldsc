@@ -40,14 +40,14 @@ The `process_sumstats.py` script should recognize most standard headers for thes
 
 ## Output
 
-Output of this script is a file, OUTPUTNAME.basic, in the LDpred BASIC format, an example of which is adapted from the [LDpred README](https://github.com/bvilhjal/ldpred) below:
+Output of this script is a file, OUTPUTNAME.basic, in a slightly-adapted LDpred BASIC format, an example of which is adapted from the [LDpred README](https://github.com/bvilhjal/ldpred) below:
 
 CHR | SNP | A1 | A2 | BP | WEIGHT | P       
 --- | --- | --- | --- | --- | --- | ---
 chr1 | rs4951859 | C | G | 729679 | -0.02170 | 0.2083  
 chr1 | rs142557973 | T | C | 731718 | 0.01930 | 0.3298  
 
-Note that all OR's will be automatically converted to log(OR). 
+The main difference between the above-described format and the original LDpred BASIC format is that I've included an effect allele weight rather than an OR. All OR's in the original sumstats files will be automatically converted to log(OR). I have altered this input, and correspondingly [my fork of the LDpred repo](https://github.com/ce-carey/ldpred), to use a weight rather than an OR in order to allow for a greater variety of sumstat inputs (e.g., both OR's from case/control studies and betas from studies of continuous traits). 
 
 ## Options
 
