@@ -720,9 +720,14 @@ def munge_sumstats(args, p=True):
 		print "converting ORs"
 		dat.WEIGHT = dat.WEIGHT.apply(np.log)
 	    dat.Z *= (-1) ** (dat.WEIGHT < signed_sumstat_null)
-	# preface chromosome number with "chr," as required by LDpred
-        if dat.CHR.dtype.name != "object":
+	
+        # preface chromosome number with "chr," as required by LDpred
+        # second part of if-statement is hacky and meant to deal with mixed columns (ex: 1,2,3,...,22,X)
+	if ~((dat.CHR.dtype.name == "object") & (len(set(map(type,dat["CHR"]))) == 1)):
             dat.CHR = 'chr' + dat.CHR.astype(str)
+
+	# make sure BP is int, not float
+	dat.BP = dat.BP.astype(int)
 
         # do this last so we don't have to worry about NA values in the rest of
         # the program
