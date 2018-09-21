@@ -184,13 +184,13 @@ def clean_header(header):
     '''
     return header.upper().replace('-', '_').replace('.', '_').replace('\n', '')
 
-
+#NOTE: default removes SNPs outside (0,1], but I switched to [0,1] to accomodate rounding in MAMA
 def filter_pvals(P, log, args):
     '''Remove out-of-bounds P-values'''
-    ii = (P > 0) & (P <= 1)
+    ii = (P >= 0) & (P <= 1)
     bad_p = (~ii).sum()
     if bad_p > 0:
-        msg = 'WARNING: {N} SNPs had P outside of (0,1]. The P column may be mislabeled.'
+        msg = 'WARNING: {N} SNPs had P outside of [0,1]. The P column may be mislabeled.'
         log.log(msg.format(N=bad_p))
 
     return ii
