@@ -738,9 +738,10 @@ def munge_sumstats(args, p=True):
         print_colnames = ['CHR','SNP', 'A1', 'A2', 'BP', 'WEIGHT', 'P']
         if args.keep_maf and 'FRQ' in dat.columns:
             print_colnames.append('FRQ')
-        msg = 'Writing summary statistics for {M} SNPs ({N} with nonmissing beta) to {F}.'
+	dat = dat.dropna()
+        msg = 'Writing summary statistics for {N} SNPs with nonmissing beta to {F}.'
         log.log(
-            msg.format(M=len(dat), F=out_fname, N=dat.N.notnull().sum()))
+            msg.format(N=len(dat), F=out_fname))
         if p:
             dat.to_csv(out_fname, sep="\t", index=False,
                        columns=print_colnames)
