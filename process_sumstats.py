@@ -98,9 +98,13 @@ default_cnames = {
     'LOG_ODDS': 'LOG_ODDS',
     'EFFECTS': 'BETA',
     'EFFECT': 'BETA',
+    'MAMA_BETA': 'BETA',
     'SIGNED_SUMSTAT': 'WEIGHT',
     # INFO
     'INFO': 'INFO',
+    # SE
+    'SE': 'SE',
+    'MAMA_SE': 'SE',
     # MAF
     'EAF': 'FRQ',
     'FRQ': 'FRQ',
@@ -120,6 +124,7 @@ describe_cname = {
     'N_CAS': 'Number of cases',
     'N_CON': 'Number of controls',
     'Z': 'Z-score (0 --> no effect; above 0 --> A1 is trait/risk increasing)',
+    'SE': 'Standard error', 
     'OR': 'Odds ratio (1 --> no effect; above 1 --> A1 is risk increasing)',
     'BETA': '[linear/logistic] regression coefficient (0 --> no effect; above 0 --> A1 is trait/risk increasing)',
     'LOG_ODDS': 'Log odds ratio (0 --> no effect; above 0 --> A1 is risk increasing)',
@@ -129,7 +134,7 @@ describe_cname = {
     'NSTUDY': 'Number of studies in which the SNP was genotyped.'
 }
 
-numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'INFO', 'FRQ', 'WEIGHT', 'NSTUDY']
+numeric_cols = ['P', 'N', 'N_CAS', 'N_CON', 'Z', 'OR', 'BETA', 'LOG_ODDS', 'SE', 'INFO', 'FRQ', 'WEIGHT', 'NSTUDY']
 
 def read_header(fh):
     '''Read the first line of a file and returns a list with the column names.'''
@@ -362,11 +367,13 @@ def process_n(dat, args, log):
             if args.daner is None:
                 msg = 'Using N_cas = {N1}; N_con = {N2}'
                 log.log(msg.format(N1=args.N_cas, N2=args.N_con))
+	elif 'SE' in dat.columns:
+		dat['N'] = np.mean((dat.WEIGHT/dat.SE)**2)/np.mean(dat.WEIGHT**2)
         else:
             raise ValueError('Cannot determine N. This message indicates a bug.\n'
                              'N should have been checked earlier in the program.')
 
-    log.log('Sample size is {N}.'.format(N=dat.N.max()))
+    log.log('Sample size is {N}'.format(N=int(dat.N.max())))
 
     return dat
 
@@ -655,7 +662,7 @@ def munge_sumstats(args, p=True):
 	    if numc > 1:
                 raise ValueError('Found {num} different {C} columns'.format(C=head,num=str(numc)))
 
-        if (not args.N) and (not (args.N_cas and args.N_con)) and ('N' not in cname_translation.values()) and\
+        if (not args.N) and (not (args.N_cas and args.N_con)) and ('N' not in cname_translation.values()) and ('SE' not in cname_translation.values()) and\
                 (any(x not in cname_translation.values() for x in ['N_CAS', 'N_CON'])):
             raise ValueError('Could not determine N.')
         if ('N' in cname_translation.values() or all(x in cname_translation.values() for x in ['N_CAS', 'N_CON']))\
@@ -738,9 +745,10 @@ def munge_sumstats(args, p=True):
         print_colnames = ['CHR','SNP', 'A1', 'A2', 'BP', 'WEIGHT', 'P']
         if args.keep_maf and 'FRQ' in dat.columns:
             print_colnames.append('FRQ')
-        msg = 'Writing summary statistics for {M} SNPs ({N} with nonmissing beta) to {F}.'
+	dat = dat.dropna()
+        msg = 'Writing summary statistics for {N} SNPs with nonmissing beta to {F}.'
         log.log(
-            msg.format(M=len(dat), F=out_fname, N=dat.N.notnull().sum()))
+            msg.format(N=len(dat), F=out_fname))
         if p:
             dat.to_csv(out_fname, sep="\t", index=False,
                        columns=print_colnames)
